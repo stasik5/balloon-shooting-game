@@ -1,10 +1,12 @@
 # 🎈 Balloon Pop - Hand Tracking Game
 
-A fun and interactive balloon shooting game that uses hand tracking with your webcam! Pop balloons by moving your hand and opening your palm.
+A fun and interactive balloon shooting game that uses hand tracking with your webcam! Pop balloons by making a "finger gun recoil" gesture with your hand.
 
 ## Features
 
+- **Recoil Gesture Detection**: Detect rapid forward/recoil hand motion to shoot (mimics gun recoil)
 - **Hand Tracking**: Uses MediaPipe Hands library to detect hand position and gestures
+- **Visual Feedback**: Recoil velocity meter and gun flash effects show gesture intensity
 - **Webcam Integration**: Smooth camera access via getUserMedia API
 - **Interactive Gameplay**: Use hand gestures or click/touch to pop balloons
 - **Score Tracking**: Different balloon colors award different points
@@ -17,8 +19,9 @@ A fun and interactive balloon shooting game that uses hand tracking with your we
 
 1. **Allow Camera Access**: Click "Start Game" and allow camera permission
 2. **Aim with Your Hand**: Move your hand to control the crosshair cursor
-3. **Pop Balloons**: Open your palm (or click/tap) to shoot and pop balloons
-4. **Score Points**: Different colored balloons award different points:
+3. **Pop Balloons**: Make a quick "push away" or "recoil" motion with your hand to shoot - think of it like the recoil kickback when firing a gun!
+4. **Alternative**: Pinch thumb and index finger together (or click/tap) as a fallback shooting method
+5. **Score Points**: Different colored balloons award different points:
    - Red: 10 points
    - Teal: 15 points
    - Blue: 20 points
@@ -39,8 +42,9 @@ A fun and interactive balloon shooting game that uses hand tracking with your we
 ## Game Controls
 
 - **Move Hand**: Control crosshair position
-- **Open Palm**: Shoot/pop balloons
-- **Click/Tap**: Alternative shooting method
+- **Recoil Gesture**: Quick forward push/recoil motion to shoot (mimics gun recoil)
+- **Pinch**: Pinch thumb and index finger (fallback shooting method)
+- **Click/Tap**: Alternative shooting method for mouse/touch
 
 ## Privacy
 
