@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balloon Pop - Hand Tracking Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <!-- Start Screen -->
+        <div id="start-screen" class="screen active">
+            <h1>🎈 Balloon Pop!</h1>
+            <div class="instructions">
+                <h2>How to Play</h2>
+                <ul>
+                    <li>Allow camera access to play</li>
+                    <li>Move your hand to aim at balloons</li>
+                    <li>Open your palm (or click) to pop balloons!</li>
+                    <li>Pop as many as you can in 60 seconds</li>
+                </ul>
+                <div class="hand-indicator">
+                    <svg viewBox="0 0 100 100" width="80" height="80">
+                        <path d="M50 20 L50 35 M35 25 L40 38 M65 25 L60 38 M40 40 L45 55 M60 40 L55 55 M50 40 L50 60" 
+                              stroke="white" stroke-width="4" fill="none" stroke-linecap="round"/>
+                    </svg>
+                    <p>Show your palm to shoot!</p>
+                </div>
+            </div>
+            <button id="start-btn" class="btn">Start Game</button>
+            <p class="note">Camera feed is processed locally and never uploaded</p>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen" class="screen">
+            <canvas id="game-canvas"></canvas>
+            <div id="hud">
+                <div class="hud-item">
+                    <span class="label">Score:</span>
+                    <span id="score">0</span>
+                </div>
+                <div class="hud-item">
+                    <span class="label">Time:</span>
+                    <span id="timer">60</span>
+                </div>
+            </div>
+            <video id="webcam" autoplay playsinline style="display:none;"></video>
+            <canvas id="landmark-canvas" style="display:none;"></canvas>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameover-screen" class="screen">
+            <h1>🎯 Time's Up!</h1>
+            <div class="final-score">
+                <p>Your Score</p>
+                <h2 id="final-score-display">0</h2>
+            </div>
+            <div id="score-message"></div>
+            <button id="restart-btn" class="btn">Play Again</button>
+            <button id="menu-btn" class="btn secondary">Main Menu</button>
+        </div>
+
+        <!-- Loading Screen -->
+        <div id="loading-screen" class="screen">
+            <div class="spinner"></div>
+            <p>Loading hand tracking model...</p>
+            <p class="sub-note">This may take a few seconds</p>
+        </div>
+
+        <!-- Error Screen -->
+        <div id="error-screen" class="screen">
+            <h1>⚠️ Camera Error</h1>
+            <p id="error-message">Unable to access your camera</p>
+            <button id="retry-btn" class="btn">Try Again</button>
+            <button id="error-menu-btn" class="btn secondary">Main Menu</button>
+        </div>
+    </div>
+
+    <!-- MediaPipe Hands -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.min.js"></script>
+    
+    <script src="game.js"></script>
+</body>
+</html>
