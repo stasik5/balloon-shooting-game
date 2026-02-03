@@ -15,7 +15,10 @@ class BalloonGame {
         this.gameRunning = false;
         this.balloons = [];
         this.handPosition = null;
-        this.isPalmOpen = false;
+        this.isPinching = false;
+        this.wasPinching = false;
+        this.pinchDistance = 0;
+        this.pinchThreshold = 0.05; // Normalized distance threshold for pinch
         this.lastShotTime = 0;
         this.shootCooldown = 200; // ms between shots
         
@@ -174,26 +177,22 @@ class BalloonGame {
                 y: indexTip.y * this.canvas.height
             };
             
-            // Check if palm is open (fingers extended)
-            // Compare tip y positions to pip y positions
+            // Detect pinching gesture
+            // Calculate distance between thumb tip (landmark 4) and index finger tip (landmark 8)
             const thumbTip = landmarks[4];
-            const indexTipL = landmarks[8];
-            const middleTip = landmarks[12];
-            const ringTip = landmarks[16];
-            const pinkyTip = landmarks[20];
-            
-            const fingersExtended = (
-                indexTipL.y < landmarks[6].y &&
-                middleTip.y < landmarks[10].y &&
-                ringTip.y < landmarks[14].y &&
-                pinkyTip.y < landmarks[18].y
+            const pinchDistance = Math.hypot(
+                thumbTip.x - indexTip.x,
+                thumbTip.y - indexTip.y
             );
             
-            const wasPalmOpen = this.isPalmOpen;
-            this.isPalmOpen = fingersExtended;
+            this.pinchDistance = pinchDistance;
+            this.wasPinching = this.isPinching;
             
-            // Shoot when palm opens (gesture trigger)
-            if (this.isPalmOpen && !wasPalmOpen) {
+            // Check if pinching (distance below threshold)
+            this.isPinching = pinchDistance < this.pinchThreshold;
+            
+            // Shoot when pinch is made (rising edge detection)
+            if (this.isPinching && !this.wasPinching) {
                 this.shoot();
             }
             
@@ -201,7 +200,9 @@ class BalloonGame {
             this.drawHand(landmarks);
         } else {
             this.handPosition = null;
-            this.isPalmOpen = false;
+            this.isPinching = false;
+            this.wasPinching = false;
+            this.pinchDistance = 0;
         }
     }
     
@@ -230,13 +231,22 @@ class BalloonGame {
         this.ctx.arc(cursorX, cursorY, cursorSize, 0, Math.PI * 2);
         this.ctx.stroke();
         
-        // Draw palm indicator when open
-        if (this.isPalmOpen) {
+        // Draw pinch indicator when pinching
+        if (this.isPinching) {
             this.ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
             this.ctx.beginPath();
             this.ctx.arc(cursorX, cursorY, cursorSize - 5, 0, Math.PI * 2);
             this.ctx.fill();
         }
+        
+        // Draw pinch distance indicator (visual feedback)
+        // Show a smaller inner circle that grows/shrinks based on pinch distance
+        const innerRadius = (this.pinchDistance / (this.pinchThreshold * 2)) * (cursorSize - 10);
+        this.ctx.strokeStyle = this.isPinching ? '#00FF00' : '#FFA500';
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.arc(cursorX, cursorY, Math.max(5, innerRadius), 0, Math.PI * 2);
+        this.ctx.stroke();
         
         this.ctx.restore();
     }
@@ -534,12 +544,21 @@ class BalloonGame {
             this.ctx.arc(this.handPosition.x, this.handPosition.y, cursorSize, 0, Math.PI * 2);
             this.ctx.stroke();
             
-            if (this.isPalmOpen) {
+            // Draw pinch indicator
+            if (this.isPinching) {
                 this.ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
                 this.ctx.beginPath();
                 this.ctx.arc(this.handPosition.x, this.handPosition.y, cursorSize - 5, 0, Math.PI * 2);
                 this.ctx.fill();
             }
+            
+            // Draw pinch distance indicator
+            const innerRadius = (this.pinchDistance / (this.pinchThreshold * 2)) * (cursorSize - 10);
+            this.ctx.strokeStyle = this.isPinching ? '#00FF00' : '#FFA500';
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            this.ctx.arc(this.handPosition.x, this.handPosition.y, Math.max(5, innerRadius), 0, Math.PI * 2);
+            this.ctx.stroke();
         }
         
         // Continue game loop at 60 FPS
