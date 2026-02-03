@@ -16,20 +16,22 @@
                 <ul>
                     <li>Allow camera access to play</li>
                     <li>Move your hand to aim at balloons</li>
-                    <li>Pinch your thumb and index finger together to pop balloons!</li>
+                    <li><strong>New!</strong> Make a quick "push away" or "recoil" motion with your hand to pop balloons!</li>
+                    <li><em>Tip: Think of it like the recoil kickback when firing a gun</em></li>
                     <li>Pop as many as you can in 60 seconds</li>
                 </ul>
                 <div class="hand-indicator">
                     <svg viewBox="0 0 100 100" width="80" height="80">
-                        <!-- Thumb -->
-                        <circle cx="35" cy="55" r="8" fill="white"/>
-                        <!-- Index finger -->
-                        <circle cx="65" cy="45" r="8" fill="white"/>
-                        <!-- Pinch indicator -->
-                        <circle cx="50" cy="50" r="5" fill="#00FF00"/>
-                        <text x="50" y="75" text-anchor="middle" fill="white" font-size="10">Pinch!</text>
+                        <!-- Hand outline -->
+                        <circle cx="50" cy="50" r="25" fill="none" stroke="white" stroke-width="2"/>
+                        <!-- Forward arrow -->
+                        <path d="M50 30 L55 40 L45 40 Z" fill="#00FF00"/>
+                        <!-- Recoil arrow -->
+                        <path d="M50 70 L45 60 L55 60 Z" fill="#FF6600"/>
+                        <!-- Center dot -->
+                        <circle cx="50" cy="50" r="8" fill="white"/>
                     </svg>
-                    <p>Pinch to shoot!</p>
+                    <p><strong>Push forward</strong> to shoot!</p>
                 </div>
             </div>
             <button id="start-btn" class="btn">Start Game</button>

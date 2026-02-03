@@ -15,6 +15,17 @@ class BalloonGame {
         this.gameRunning = false;
         this.balloons = [];
         this.handPosition = null;
+        
+        // Recoil gesture detection
+        this.handPositionHistory = [];
+        this.maxHistorySize = 15; // Number of frames to track
+        this.isRecoiling = false;
+        this.recoilVelocity = 0;
+        this.recoilThreshold = 0.015; // Minimum velocity to detect recoil
+        this.recoilDetectionCooldown = 300; // ms between shots
+        this.lastRecoilTime = 0;
+        
+        // Legacy pinch gesture (still available as fallback)
         this.isPinching = false;
         this.wasPinching = false;
         this.pinchDistance = 0;
@@ -177,8 +188,27 @@ class BalloonGame {
                 y: indexTip.y * this.canvas.height
             };
             
-            // Detect pinching gesture
-            // Calculate distance between thumb tip (landmark 4) and index finger tip (landmark 8)
+            // Get wrist position (landmark 0) for recoil detection
+            const wrist = landmarks[0];
+            
+            // Track hand position history for recoil gesture
+            const timestamp = Date.now();
+            this.handPositionHistory.push({
+                x: wrist.x,
+                y: wrist.y,
+                z: wrist.z,
+                timestamp: timestamp
+            });
+            
+            // Keep only recent history
+            if (this.handPositionHistory.length > this.maxHistorySize) {
+                this.handPositionHistory.shift();
+            }
+            
+            // Detect recoil gesture
+            this.detectRecoilGesture();
+            
+            // Detect pinching gesture (legacy, still works as fallback)
             const thumbTip = landmarks[4];
             const pinchDistance = Math.hypot(
                 thumbTip.x - indexTip.x,
@@ -191,7 +221,7 @@ class BalloonGame {
             // Check if pinching (distance below threshold)
             this.isPinching = pinchDistance < this.pinchThreshold;
             
-            // Shoot when pinch is made (rising edge detection)
+            // Shoot when pinch is made (rising edge detection) - only if not using recoil
             if (this.isPinching && !this.wasPinching) {
                 this.shoot();
             }
@@ -200,9 +230,106 @@ class BalloonGame {
             this.drawHand(landmarks);
         } else {
             this.handPosition = null;
+            this.isRecoiling = false;
+            this.recoilVelocity = 0;
+            this.handPositionHistory = [];
             this.isPinching = false;
             this.wasPinching = false;
             this.pinchDistance = 0;
+        }
+    }
+    
+    detectRecoilGesture() {
+        // Need at least 5 frames of history to detect motion
+        if (this.handPositionHistory.length < 5) {
+            this.recoilVelocity = 0;
+            return;
+        }
+        
+        const now = Date.now();
+        
+        // Calculate average z-velocity over recent frames
+        // z-coordinate: positive = closer to camera (forward), negative = farther (backward)
+        const recentPositions = this.handPositionHistory.slice(-5);
+        
+        // Calculate velocity by comparing oldest and newest positions
+        const oldest = recentPositions[0];
+        const newest = recentPositions[recentPositions.length - 1];
+        
+        // Time difference in milliseconds
+        const timeDiff = newest.timestamp - oldest.timestamp;
+        if (timeDiff < 10) return; // Avoid division by very small numbers
+        
+        // Z-velocity (change in z per second)
+        // Positive z-velocity means moving toward camera (forward push)
+        // Negative z-velocity means moving away from camera (backward recoil)
+        const zVelocity = (newest.z - oldest.z) / (timeDiff / 1000);
+        
+        this.recoilVelocity = zVelocity;
+        
+        // Detect recoil gesture: rapid forward motion OR forward-then-backward motion
+        
+        // Method 1: Sharp forward push (high positive velocity)
+        if (zVelocity > this.recoilThreshold) {
+            const now = Date.now();
+            if (now - this.lastRecoilTime > this.recoilDetectionCooldown) {
+                this.lastRecoilTime = now;
+                this.isRecoiling = true;
+                
+                // Set recoil state back to false after a short delay
+                setTimeout(() => {
+                    this.isRecoiling = false;
+                }, 100);
+                
+                // Shoot when recoil detected
+                this.shoot();
+            }
+        }
+        
+        // Method 2: Forward then backward motion (detect peak and valley)
+        if (this.handPositionHistory.length >= 10) {
+            const positions = this.handPositionHistory.slice(-10);
+            
+            // Find max z (closest to camera, forward motion)
+            let maxZ = -Infinity;
+            let maxZIndex = 0;
+            
+            // Find min z (farthest from camera, after forward motion)
+            let minZ = Infinity;
+            let minZIndex = 0;
+            
+            positions.forEach((pos, i) => {
+                if (pos.z > maxZ) {
+                    maxZ = pos.z;
+                    maxZIndex = i;
+                }
+                if (pos.z < minZ) {
+                    minZ = pos.z;
+                    minZIndex = i;
+                }
+            });
+            
+            // Check if we have forward-then-backward pattern
+            // Pattern: maxZ occurs first, then minZ occurs later
+            if (maxZIndex < minZIndex && (maxZ - minZ) > 0.02) {
+                // Check time difference
+                const timeDiff = positions[minZIndex].timestamp - positions[maxZIndex].timestamp;
+                
+                // Pattern must happen quickly (within 300ms)
+                if (timeDiff < 300 && timeDiff > 50) {
+                    const now = Date.now();
+                    if (now - this.lastRecoilTime > this.recoilDetectionCooldown) {
+                        this.lastRecoilTime = now;
+                        this.isRecoiling = true;
+                        
+                        setTimeout(() => {
+                            this.isRecoiling = false;
+                        }, 100);
+                        
+                        this.shoot();
+                    }
+                }
+            }
         }
     }
     
@@ -231,12 +358,49 @@ class BalloonGame {
         this.ctx.arc(cursorX, cursorY, cursorSize, 0, Math.PI * 2);
         this.ctx.stroke();
         
+        // Draw recoil indicator when recoiling
+        if (this.isRecoiling) {
+            // Draw gun flash effect
+            this.ctx.fillStyle = 'rgba(255, 255, 0, 0.8)';
+            this.ctx.beginPath();
+            this.ctx.arc(cursorX, cursorY, cursorSize + 10, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Draw recoil kickback lines
+            this.ctx.strokeStyle = 'rgba(255, 200, 0, 0.9)';
+            this.ctx.lineWidth = 4;
+            for (let i = 0; i < 8; i++) {
+                const angle = (Math.PI * 2 / 8) * i;
+                this.ctx.beginPath();
+                this.ctx.moveTo(cursorX, cursorY);
+                this.ctx.lineTo(
+                    cursorX + Math.cos(angle) * (cursorSize + 20),
+                    cursorY + Math.sin(angle) * (cursorSize + 20)
+                );
+                this.ctx.stroke();
+            }
+        }
+        
         // Draw pinch indicator when pinching
         if (this.isPinching) {
             this.ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
             this.ctx.beginPath();
             this.ctx.arc(cursorX, cursorY, cursorSize - 5, 0, Math.PI * 2);
             this.ctx.fill();
+        }
+        
+        // Draw recoil velocity meter (visual feedback for recoil intensity)
+        const recoilIntensity = Math.min(Math.abs(this.recoilVelocity) / (this.recoilThreshold * 3), 1);
+        if (recoilIntensity > 0.1) {
+            const meterRadius = cursorSize - 5;
+            const meterLength = recoilIntensity * meterRadius;
+            
+            // Draw arc showing recoil velocity
+            this.ctx.strokeStyle = `hsl(${120 - recoilIntensity * 120}, 100%, 50%)`; // Green to red
+            this.ctx.lineWidth = 3;
+            this.ctx.beginPath();
+            this.ctx.arc(cursorX, cursorY, meterRadius, -Math.PI / 2, -Math.PI / 2 + Math.PI * recoilIntensity);
+            this.ctx.stroke();
         }
         
         // Draw pinch distance indicator (visual feedback)
@@ -528,7 +692,7 @@ class BalloonGame {
         
         // Draw hand visualization (if hand detected)
         if (this.handPosition) {
-            // Redraw cursor
+            // Redraw cursor with recoil feedback
             const cursorSize = 30;
             this.ctx.strokeStyle = '#FF0000';
             this.ctx.lineWidth = 3;
@@ -544,12 +708,46 @@ class BalloonGame {
             this.ctx.arc(this.handPosition.x, this.handPosition.y, cursorSize, 0, Math.PI * 2);
             this.ctx.stroke();
             
-            // Draw pinch indicator
+            // Draw recoil indicator when recoiling
+            if (this.isRecoiling) {
+                // Draw gun flash effect
+                this.ctx.fillStyle = 'rgba(255, 255, 0, 0.8)';
+                this.ctx.beginPath();
+                this.ctx.arc(this.handPosition.x, this.handPosition.y, cursorSize + 10, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Draw recoil kickback lines
+                this.ctx.strokeStyle = 'rgba(255, 200, 0, 0.9)';
+                this.ctx.lineWidth = 4;
+                for (let i = 0; i < 8; i++) {
+                    const angle = (Math.PI * 2 / 8) * i;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(this.handPosition.x, this.handPosition.y);
+                    this.ctx.lineTo(
+                        this.handPosition.x + Math.cos(angle) * (cursorSize + 20),
+                        this.handPosition.y + Math.sin(angle) * (cursorSize + 20)
+                    );
+                    this.ctx.stroke();
+                }
+            }
+            
+            // Draw pinch indicator when pinching
             if (this.isPinching) {
                 this.ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
                 this.ctx.beginPath();
                 this.ctx.arc(this.handPosition.x, this.handPosition.y, cursorSize - 5, 0, Math.PI * 2);
                 this.ctx.fill();
+            }
+            
+            // Draw recoil velocity meter
+            const recoilIntensity = Math.min(Math.abs(this.recoilVelocity) / (this.recoilThreshold * 3), 1);
+            if (recoilIntensity > 0.1) {
+                const meterRadius = cursorSize - 5;
+                this.ctx.strokeStyle = `hsl(${120 - recoilIntensity * 120}, 100%, 50%)`;
+                this.ctx.lineWidth = 3;
+                this.ctx.beginPath();
+                this.ctx.arc(this.handPosition.x, this.handPosition.y, meterRadius, -Math.PI / 2, -Math.PI / 2 + Math.PI * recoilIntensity);
+                this.ctx.stroke();
             }
             
             // Draw pinch distance indicator
